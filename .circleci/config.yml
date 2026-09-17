@@ -1,0 +1,30 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      # `install` and `mod-download` manage their own job caches internally,
+      # so no restore_cache/save_cache steps are needed around them.
+      - run:
+          name: Set up Go
+          # Deliberately not `--version-file go.mod`: this module's `go`
+          # directive is 1.15 (a language-level floor), but dependencies such as
+          # mousetrap v1.1.0 require go >= 1.18, so a go1.15.x toolchain cannot
+          # build the tests. `stable` tracks the newest stable release, which is
+          # what cobra is actually developed against.
+          command: circleci run circleci/setup-go@0.0.11-94c150b -- install --version stable
+      - run:
+          name: Download modules
+          command: circleci run circleci/setup-go@0.0.11-94c150b -- mod-download --checksum '{{ checksum "go.sum" }}'
+      - run:
+          name: Test
+          command: circleci run circleci/setup-go@0.0.11-94c150b -- test --project-path .
+
+workflows:
+  # No branch filters, so this runs on every push to every branch.
+  test:
+    jobs:
+      - test
